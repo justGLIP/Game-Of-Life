@@ -15,21 +15,39 @@ class ViewController: UIViewController {
     @IBOutlet weak var informationView: UIView!
     @IBOutlet weak var buttonsView: UIView!
     @IBOutlet weak var restartBtn: UIButton!
+    @IBOutlet weak var stopBtn: UIButton!
+    @IBOutlet weak var startBtn: UIButton!
+    @IBOutlet weak var aliveLabel: UILabel!
     
+    
+    //MARK: Кнопки
     @IBAction func restartButton(_ sender: Any) {
         screenUpdateTimer?.invalidate()
         createLife()
         drawImage()
     }
     
-    let rows = 50
-    let cols = 50
+    @IBAction func stopButton(_ sender: Any) {
+        screenUpdateTimer?.invalidate()
+    }
+    
+    @IBAction func startButton(_ sender: Any) {
+        screenUpdateTimer?.invalidate()
+        screenUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true, block: { [self]_ in
+            nextCycle()
+            drawImage()
+        })
+    }
+    
+    let rows = 100
+    let cols = 100
     var cellSize = CGSize(width: 0, height: 0)
     var grid:[[Bool]] = []
     var newGrid:[[Bool]] = []
     let canvasSize = CGSize(width: 400, height: 400) //размер холста
     var screenUpdateTimer: Timer?
-    let aliveCount = 300
+    let aliveCount = 800
+    var stillAlive = 0
     
     //MARK: viewDidLoad
     override func viewDidLoad() {
@@ -49,6 +67,7 @@ class ViewController: UIViewController {
     func layoutItems() {
         let dH = (mainView.frame.height - mainView.frame.width)/2
         let dW = (mainView.frame.width - mainView.frame.height)/2
+        let gap = restartBtn.frame.width - stopBtn.frame.width - startBtn.frame.width
         
         informationView.frame.origin = CGPoint.zero
         
@@ -68,11 +87,8 @@ class ViewController: UIViewController {
             buttonsView.frame.size.height = mainView.frame.height
             buttonsView.frame.size.width = dW
             
-            //restart Button
-            print(mainView.frame.size)
-            print(buttonsView.bounds.width)
-            print(restartBtn.frame.width/2)
-            
+            //Labels
+            aliveLabel.frame.origin = CGPoint(x: informationView.bounds.midX - aliveLabel.frame.width/2, y: informationView.bounds.minY + gap)
             
         } else { //здесь код для portrait
             
@@ -89,15 +105,23 @@ class ViewController: UIViewController {
             buttonsView.frame.origin = CGPoint(x: 0, y: imageView.frame.maxY)
             buttonsView.frame.size.height = dH
             buttonsView.frame.size.width = mainView.frame.width
+            
+            //Labels
+            aliveLabel.frame.origin = CGPoint(x: informationView.bounds.midX - aliveLabel.frame.width/2, y: informationView.bounds.maxY - gap - aliveLabel.frame.height)
         
         }
         
-        //restart Button
-        restartBtn.frame.origin = CGPoint(x: buttonsView.bounds.midX - restartBtn.frame.width/2, y: 20) //buttonsView.center.x -
+        //Buttons
+        restartBtn.frame.origin = CGPoint(x: buttonsView.bounds.midX - restartBtn.frame.width/2, y: gap)
+        stopBtn.frame.origin = CGPoint(x: restartBtn.frame.origin.x, y: gap * 2 + stopBtn.frame.height)
+        startBtn.frame.origin = CGPoint(x: restartBtn.frame.maxX - startBtn.frame.width, y: gap * 2 + startBtn.frame.height)
+        
+        
     }
     
     //MARK: createLife
     func createLife() {
+        grid.removeAll()
         var newRow:[Bool] = []
         for _ in 0...rows-1 {
             newRow.removeAll()
@@ -116,6 +140,16 @@ class ViewController: UIViewController {
                 j = Int.random(in: 0...cols-1)
             }
             grid[i][j] = true
+        }
+        
+        // считаем живых
+        stillAlive = 0
+        for i in 0...rows-1 {
+            for j in 0...cols-1 {
+                if grid[i][j] {
+                    stillAlive += 1
+                }
+            }
         }
         
     }
@@ -148,18 +182,25 @@ class ViewController: UIViewController {
         }
     }
     
-    // MARK: рисуем на поле
-    func drawImage(){
-        screenUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.10, repeats: true, block: { [self]_ in
-            //  рассчитываем новое поле
-            newGrid = grid
-            for i in 0...rows-1 {
-                for j in 0...cols-1 {
-                    newGrid[i][j] = checkNeighbours(row: i, col: j)
+    //MARK: Подсчет следующего поколения
+    func nextCycle () {
+        //  рассчитываем новое поле
+        newGrid = grid
+        stillAlive = 0
+        for i in 0...rows-1 {
+            for j in 0...cols-1 {
+                newGrid[i][j] = checkNeighbours(row: i, col: j)
+                if newGrid[i][j] {
+                    stillAlive += 1
                 }
             }
-            grid = newGrid
-            
+        }
+        grid = newGrid
+    }
+    
+    // MARK: рисуем на поле
+    func drawImage(){
+        
             let renderer = UIGraphicsImageRenderer(size: CGSize(width: canvasSize.width, height: canvasSize.height))
             let img = renderer.image { context in
                 context.cgContext.setStrokeColor(UIColor.black.cgColor)
@@ -176,7 +217,8 @@ class ViewController: UIViewController {
                 }
             }
             imageView.image = img
-        })
+            aliveLabel.text = "Живых клеток: \(stillAlive)"
+        //})
     }
     
 }
